@@ -14,7 +14,7 @@ from PIL import Image, ImageTk
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/baruch/Desktop/MailLight/key.json"
 
 # --- כתובת העדכון האוטומטי (Raw GitHub) ---
-UPDATE_URL = "https://raw.githubusercontent.com/baruch/MailLight/main/main_kiosk.py"
+UPDATE_URL = "https://raw.githubusercontent.com/baruch3000/MailLight/main/main_kiosk.py"
 
 # --- טעינת נתונים ---
 try:
