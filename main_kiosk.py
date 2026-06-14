@@ -1,15 +1,20 @@
 import os
 import time
+import sys
+import urllib.request
 from bidi.algorithm import get_display
 import tkinter as tk
 import cv2
 import numpy as np
 import json
 from google.cloud import vision
-from PIL import Image, ImageTk  # <--- הוספנו את הספרייה שמטפלת בתמונות
+from PIL import Image, ImageTk
 
 # הגדרת המפתח של גוגל
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/baruch/Desktop/MailLight/key.json"
+
+# --- כתובת העדכון האוטומטי (Raw GitHub) ---
+UPDATE_URL = "https://raw.githubusercontent.com/baruch/MailLight/main/main_kiosk.py"
 
 # --- טעינת נתונים ---
 try:
@@ -51,30 +56,27 @@ class MailLightKiosk:
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg="white")
         
-        # --- יציאה סודית ---
         self.root.bind('<Double-Button-1>', self.secret_exit)
         
-        # טעינת התמונה וכיווץ אוטומטי לגודל 150x150
+        # הקטנת התמונה לגודל שלא מפריע למסך
         try:
             original_image = Image.open("standby.png")
-            resized_image = original_image.resize((150, 150), Image.Resampling.LANCZOS)
+            resized_image = original_image.resize((90, 90), Image.Resampling.LANCZOS)
             self.sleep_img = ImageTk.PhotoImage(resized_image)
         except Exception as e:
-            print("Could not load image:", e)
             self.sleep_img = None 
             
         self.is_standby = True
         self.last_activity_time = 0
         self.cap = None
         
-        # כותרת / כפתור שינה
         self.header_var = tk.StringVar()
-        self.header_label = tk.Label(root, textvariable=self.header_var, font=("Helvetica", 22, "bold"), bg="white", cursor="hand2")
-        self.header_label.pack(pady=10)
+        self.header_label = tk.Label(root, textvariable=self.header_var, font=("Helvetica", 24, "bold"), bg="white", cursor="hand2")
+        self.header_label.pack(pady=5)
         self.header_label.bind('<Button-1>', self.wake_up_system)
         
         self.arrow_var = tk.StringVar(value="")
-        tk.Label(root, textvariable=self.arrow_var, font=("Helvetica", 28, "bold"), fg="red", bg="white").pack()
+        tk.Label(root, textvariable=self.arrow_var, font=("Helvetica", 22, "bold"), fg="red", bg="white").pack()
         
         self.grid_frame = tk.Frame(root, bg="white")
         self.grid_frame.pack()
@@ -85,7 +87,6 @@ class MailLightKiosk:
             canvas.create_rectangle(15, 8, 75, 12, fill="#333333", outline="")
             canvas.create_text(45, 25, text=str(i), font=("Helvetica", 12, "bold"), tags="txt")
             canvas.create_oval(40, 34, 50, 44, fill="#757575", outline="#333333")
-            
             row = (i-1) // 5
             col = 4 - ((i-1) % 5)
             canvas.grid(row=row, column=col, padx=2, pady=1)
@@ -94,7 +95,6 @@ class MailLightKiosk:
         self.blinking_boxes = []
         self.blink_state = False
         self.blink_timer = None 
-        
         self.last_frame = None
         self.is_processing = False
         self.frame_counter = 0
@@ -103,84 +103,108 @@ class MailLightKiosk:
 
     def secret_exit(self, event):
         if event.x_root < 70 and event.y_root < 70:
-            if self.cap is not None:
-                self.cap.release()
+            if self.cap is not None: self.cap.release()
             self.root.destroy()
 
     def go_to_sleep(self):
+        """מצב שינה: המצלמה כבויה, ואז מתבצעת בדיקת עדכונים ברקע"""
         self.is_standby = True
+        
         if self.cap is not None:
             self.cap.release()
             self.cap = None
             
+        # שינוי המסך למצב שינה עם תמונה וטקסט בשורה אחת
         if self.sleep_img:
-            self.header_label.config(image=self.sleep_img, text="", bg="white", relief="flat", padx=0, pady=0)
+            self.header_label.config(image=self.sleep_img, text=get_display("לסריקת מכתב - גע במסך"), compound=tk.RIGHT, bg="white", fg="#4CAF50", relief="flat", padx=10, pady=5)
         else:
-            self.header_label.config(image="", bg="#4CAF50", fg="white", relief="raised", padx=20, pady=10)
-            self.header_var.set(get_display("מערכת בשינה - לחץ כאן להפעלה"))
-            
+            self.header_label.config(image="", bg="#4CAF50", fg="white", relief="raised", padx=20, pady=10, compound=tk.NONE)
+            self.header_var.set(get_display("מערכת בשינה - גע במסך להפעלה"))
+        
         self.arrow_var.set("")
         
         if self.blink_timer:
             self.root.after_cancel(self.blink_timer)
             self.blink_timer = None
+            
         for b in range(1, 31): 
             self.boxes[b].config(bg="#e0e0e0")
+        self.root.update()
+            
+        # בדיקת עדכון ברקע
+        self.root.after(100, self.check_for_updates)
+
+    def check_for_updates(self):
+        """פונקציה לבדיקת עדכון ודריסת הקוד הנוכחי בלבד"""
+        if "YOUR_USERNAME" in UPDATE_URL: return
+            
+        try:
+            with urllib.request.urlopen(UPDATE_URL, timeout=5) as response:
+                new_code = response.read().decode('utf-8')
+            
+            if "import os" in new_code and "MailLightKiosk" in new_code:
+                with open(__file__, "r", encoding="utf-8") as f: 
+                    current_code = f.read()
+                
+                if new_code.strip() != current_code.strip():
+                    with open(__file__ + ".bak", "w", encoding="utf-8") as f: 
+                        f.write(current_code)
+                    with open(__file__, "w", encoding="utf-8") as f: 
+                        f.write(new_code)
+                    
+                    if self.cap is not None: self.cap.release()
+                    self.root.destroy() 
+        except Exception as e:
+            print("Update failed:", e)
 
     def wake_up_system(self, event=None):
-        if not self.is_standby:
-            return 
+        """הפעלה מיידית! הדוור לא ממתין לעדכונים."""
+        if not self.is_standby: return 
             
         self.is_standby = False
         self.last_activity_time = time.time()
         self.cap = cv2.VideoCapture(0)
         
-        self.header_label.config(image="", bg="white", fg="black", relief="flat", padx=0, pady=0)
+        # איפוס העיצוב למצב עבודה
+        self.header_label.config(image="", text="", compound=tk.NONE, bg="white", fg="black", relief="flat", padx=0, pady=0)
         self.header_var.set(get_display("העבר מעטפה מול המצלמה..."))
         
         self.last_frame = None
         self.is_processing = False
         self.frame_counter = 0
-        
         self.root.after(100, self.camera_loop)
 
     def camera_loop(self):
-        if self.is_standby:
-            return 
-            
+        if self.is_standby or self.cap is None: return 
         if time.time() - self.last_activity_time > 180:
             self.go_to_sleep()
             return
             
         ret, frame = self.cap.read()
-        
         if ret and not self.is_processing:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.GaussianBlur(gray, (21, 21), 0)
-            
-            if self.last_frame is None:
+            if self.last_frame is None: 
                 self.last_frame = gray
             else:
                 frame_delta = cv2.absdiff(self.last_frame, gray)
                 thresh = cv2.threshold(frame_delta, 30, 255, cv2.THRESH_BINARY)[1]
-                changed_pixels = cv2.countNonZero(thresh)
-                
-                if changed_pixels > 3000:
+                if cv2.countNonZero(thresh) > 3000:
                     self.last_activity_time = time.time()
                     self.is_processing = True 
                     self.process_mail(frame)
                 else:
                     self.frame_counter += 1
-                    if self.frame_counter > 5:
+                    if self.frame_counter > 5: 
                         self.last_frame = gray
                         self.frame_counter = 0
-                        
         self.root.after(50, self.camera_loop)
 
     def process_mail(self, frame):
-        if self.blink_timer:
+        if self.blink_timer: 
             self.root.after_cancel(self.blink_timer)
             self.blink_timer = None
+            
         for b in range(1, 31): 
             self.boxes[b].config(bg="#e0e0e0")
             
@@ -197,18 +221,15 @@ class MailLightKiosk:
             self.header_var.set(get_display(final_msg))
             self.blinking_boxes = [b for b, n in found_data]
             self.update_arrow(self.blinking_boxes[0])
-            
             self.blink_state = True
             self.blink()
-            
             self.root.after(1500, self.end_cooldown)
         else:
             self.header_var.set(get_display("לא נמצא דייר תואם"))
             self.root.after(1500, self.end_cooldown)
 
     def end_cooldown(self):
-        if self.is_standby:
-            return
+        if self.is_standby: return
         self.last_frame = None
         self.is_processing = False 
 
