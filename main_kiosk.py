@@ -14,10 +14,10 @@ import qrcode
 # הגדרת המפתח של גוגל
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/baruch/Desktop/MailLight/key.json"
 
-# --- כתובת העדכון האוטומטי המדויקת ---
+# --- תיקון השם ל-baruch3000 ---
 UPDATE_URL = "https://raw.githubusercontent.com/baruch3000/MailLight/main/main_kiosk.py"
 
-# --- יצירת אייקון והפעלה אוטומטית (ללא צורך בהקלדה ידנית!) ---
+# --- יצירת אייקון והפעלה אוטומטית ---
 def setup_autostart_and_desktop():
     try:
         shortcut_content = """[Desktop Entry]
@@ -30,13 +30,11 @@ Terminal=false
         autostart_dir = "/home/baruch/.config/autostart"
         autostart_path = os.path.join(autostart_dir, "MailLight_App.desktop")
         
-        # יצירת אייקון בשולחן העבודה
         if not os.path.exists(desktop_path):
             with open(desktop_path, "w") as f:
                 f.write(shortcut_content)
             os.chmod(desktop_path, 0o755)
             
-        # יצירת הפעלה אוטומטית בחשמל
         if not os.path.exists(autostart_dir):
             os.makedirs(autostart_dir, exist_ok=True)
         if not os.path.exists(autostart_path):
@@ -46,7 +44,6 @@ Terminal=false
     except Exception as e:
         print("Setup error:", e)
 
-# מפעיל את יצירת האייקונים מיד כשהתוכנה עולה
 setup_autostart_and_desktop()
 
 # --- טעינת נתונים ---
@@ -80,7 +77,6 @@ def check_tenants(text):
             results.append((int(box), name))
     return results, text
 
-# --- ממשק גרפי ---
 class MailLightKiosk:
     def __init__(self, root):
         self.root = root
@@ -88,34 +84,27 @@ class MailLightKiosk:
         self.root.geometry("800x480")
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg="white")
-        
         self.root.bind('<Double-Button-1>', self.secret_exit)
         
         try:
             original_image = Image.open("standby.png")
             resized_image = original_image.resize((120, 120), Image.Resampling.LANCZOS)
             self.sleep_img = ImageTk.PhotoImage(resized_image)
-        except Exception as e:
-            self.sleep_img = None 
+        except Exception as e: self.sleep_img = None 
             
         self.is_standby = True
         self.last_activity_time = 0
         self.cap = None
-        
         self.header_var = tk.StringVar()
         self.header_label = tk.Label(root, textvariable=self.header_var, font=("Helvetica", 26, "bold"), bg="white", cursor="hand2")
         self.header_label.pack(pady=5)
         self.header_label.bind('<Button-1>', self.wake_up_system)
-        
         self.arrow_var = tk.StringVar(value="")
         tk.Label(root, textvariable=self.arrow_var, font=("Helvetica", 22, "bold"), fg="red", bg="white").pack()
-
         self.qr_label = tk.Label(root, bg="white")
         self.qr_label.pack(pady=5)
-        
         self.grid_frame = tk.Frame(root, bg="white")
         self.grid_frame.pack()
-        
         self.boxes = {}
         for i in range(1, 31):
             canvas = tk.Canvas(self.grid_frame, width=90, height=45, bg="#e0e0e0", highlightthickness=2, highlightbackground="#757575")
@@ -126,14 +115,12 @@ class MailLightKiosk:
             col = 4 - ((i-1) % 5)
             canvas.grid(row=row, column=col, padx=2, pady=1)
             self.boxes[i] = canvas
-            
         self.blinking_boxes = []
         self.blink_state = False
         self.blink_timer = None 
         self.last_frame = None
         self.is_processing = False
         self.frame_counter = 0
-        
         self.go_to_sleep()
 
     def secret_exit(self, event):
@@ -144,142 +131,90 @@ class MailLightKiosk:
 
     def go_to_sleep(self):
         self.is_standby = True
-        
-        if self.cap is not None:
-            self.cap.release()
-            self.cap = None
-            
+        if self.cap is not None: self.cap.release(); self.cap = None
         if self.sleep_img:
             self.header_label.config(image=self.sleep_img, compound=tk.TOP, fg="#4CAF50")
             self.header_var.set(get_display("לסריקת מכתב - גע במסך"))
         else:
             self.header_label.config(image="", compound=tk.NONE, fg="#4CAF50")
             self.header_var.set(get_display("מערכת בשינה - גע במסך להפעלה"))
-        
-        self.arrow_var.set("")
-        self.qr_label.config(image="")
-        
-        if self.blink_timer:
-            self.root.after_cancel(self.blink_timer)
-            self.blink_timer = None
-            
-        for b in range(1, 31): 
-            self.boxes[b].config(bg="#e0e0e0")
+        self.arrow_var.set(""); self.qr_label.config(image="")
+        if self.blink_timer: self.root.after_cancel(self.blink_timer); self.blink_timer = None
+        for b in range(1, 31): self.boxes[b].config(bg="#e0e0e0")
         self.root.update()
-            
         self.root.after(100, self.check_for_updates)
 
     def check_for_updates(self):
-        if "YOUR_USERNAME" in UPDATE_URL: return
         try:
             with urllib.request.urlopen(UPDATE_URL, timeout=5) as response:
                 new_code = response.read().decode('utf-8')
-            
             if "import os" in new_code and "MailLightKiosk" in new_code:
-                with open(__file__, "r", encoding="utf-8") as f: 
-                    current_code = f.read()
-                
+                with open(__file__, "r", encoding="utf-8") as f: current_code = f.read()
                 if new_code.strip() != current_code.strip():
-                    with open(__file__ + ".bak", "w", encoding="utf-8") as f: 
-                        f.write(current_code)
-                    with open(__file__, "w", encoding="utf-8") as f: 
-                        f.write(new_code)
-                    
+                    with open(__file__ + ".bak", "w", encoding="utf-8") as f: f.write(current_code)
+                    with open(__file__, "w", encoding="utf-8") as f: f.write(new_code)
                     if self.cap is not None: self.cap.release()
                     self.root.destroy() 
-        except Exception as e:
-            print("Update failed:", e)
+        except Exception as e: print("Update failed:", e)
 
     def wake_up_system(self, event=None):
         if not self.is_standby: return 
-            
-        self.is_standby = False
-        self.last_activity_time = time.time()
-        
-        # --- מנגנון הגנה למצלמה מנותקת ---
+        self.is_standby = False; self.last_activity_time = time.time()
         self.cap = cv2.VideoCapture(0)
         if not self.cap.isOpened():
             self.header_label.config(image="", compound=tk.NONE, fg="red")
             self.header_var.set(get_display("שגיאה: מצלמה לא מחוברת!"))
-            self.qr_label.config(image="")
-            self.cap = None
-            self.root.after(5000, self.go_to_sleep) # יחזור לישון אחרי 5 שניות
-            return
-            
+            self.cap = None; self.root.after(5000, self.go_to_sleep); return
         self.header_label.config(image="", compound=tk.NONE, fg="black")
         self.header_var.set(get_display("העבר מעטפה מול המצלמה..."))
         self.qr_label.config(image="")
-        
-        self.last_frame = None
-        self.is_processing = False
-        self.frame_counter = 0
+        self.last_frame = None; self.is_processing = False; self.frame_counter = 0
         self.root.after(100, self.camera_loop)
 
     def camera_loop(self):
         if self.is_standby or self.cap is None: return 
-        if time.time() - self.last_activity_time > 180:
-            self.go_to_sleep()
-            return
-            
+        if time.time() - self.last_activity_time > 180: self.go_to_sleep(); return
         ret, frame = self.cap.read()
         if ret and not self.is_processing:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             gray = cv2.GaussianBlur(gray, (21, 21), 0)
-            if self.last_frame is None: 
-                self.last_frame = gray
+            if self.last_frame is None: self.last_frame = gray
             else:
                 frame_delta = cv2.absdiff(self.last_frame, gray)
                 thresh = cv2.threshold(frame_delta, 30, 255, cv2.THRESH_BINARY)[1]
                 if cv2.countNonZero(thresh) > 3000:
-                    self.last_activity_time = time.time()
-                    self.is_processing = True 
-                    self.process_mail(frame)
+                    self.last_activity_time = time.time(); self.is_processing = True; self.process_mail(frame)
                 else:
                     self.frame_counter += 1
-                    if self.frame_counter > 5: 
-                        self.last_frame = gray
-                        self.frame_counter = 0
+                    if self.frame_counter > 5: self.last_frame = gray; self.frame_counter = 0
         self.root.after(50, self.camera_loop)
 
     def process_mail(self, frame):
         text = analyze_image_content(frame)
         found_data, _ = check_tenants(text)
-        
         if found_data:
-            if self.blink_timer: 
-                self.root.after_cancel(self.blink_timer)
-                self.blink_timer = None
-                
-            for b in range(1, 31): 
-                self.boxes[b].config(bg="#e0e0e0")
-                
+            if self.blink_timer: self.root.after_cancel(self.blink_timer); self.blink_timer = None
+            for b in range(1, 31): self.boxes[b].config(bg="#e0e0e0")
             display_text = " ו- ".join([f"{name} (תיבה {box})" for box, name in found_data])
             final_msg = f"המכתב שייך ל-{display_text}"
             self.header_var.set(get_display(final_msg))
             self.blinking_boxes = [b for b, n in found_data]
             self.update_arrow(self.blinking_boxes[0])
             self.blink_state = True
-            
             try:
                 target_box = self.blinking_boxes[0]
                 url = f"https://maillight-app.com/delivery?box={target_box}"
                 qr = qrcode.QRCode(box_size=4, border=1)
-                qr.add_data(url)
-                qr.make(fit=True)
+                qr.add_data(url); qr.make(fit=True)
                 img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-                self.qr_photo = ImageTk.PhotoImage(img)
-                self.qr_label.config(image=self.qr_photo)
-            except Exception as e:
-                print("QR Error:", e)
-            
+                self.qr_photo = ImageTk.PhotoImage(img); self.qr_label.config(image=self.qr_photo)
+            except Exception as e: print("QR Error:", e)
             self.blink()
-            
         self.root.after(1500, self.end_cooldown)
 
     def end_cooldown(self):
         if self.is_standby: return
-        self.last_frame = None
-        self.is_processing = False 
+        self.last_frame = None; self.is_processing = False 
 
     def update_arrow(self, box_num):
         col = (box_num - 1) % 5
@@ -289,11 +224,8 @@ class MailLightKiosk:
         
     def blink(self):
         if not self.blinking_boxes: return
-        
         new_bg = "#fff59d" if self.blink_state else "#e0e0e0"
-        for box_num in self.blinking_boxes:
-            self.boxes[box_num].config(bg=new_bg)
-            
+        for box_num in self.blinking_boxes: self.boxes[box_num].config(bg=new_bg)
         self.blink_state = not self.blink_state
         self.blink_timer = self.root.after(500, self.blink)
 
