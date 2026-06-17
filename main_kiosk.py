@@ -105,8 +105,11 @@ class MailLightKiosk:
         self.go_to_sleep()
 
     def secret_exit(self, event):
+        """יציאת סתרים משודרגת שגם הורגת את לולאת המגן"""
         if event.x_root < 70 and event.y_root < 70:
             if self.cap is not None: self.cap.release()
+            # הפקודה הבאה מחפשת את הלולאה שרצה ברקע ומכבה אותה!
+            os.system("pkill -f launch_kiosk.sh")
             self.root.destroy()
 
     def go_to_sleep(self):
