@@ -17,6 +17,38 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/baruch/Desktop/MailLight/k
 # --- כתובת העדכון האוטומטי המדויקת ---
 UPDATE_URL = "https://raw.githubusercontent.com/baruch3000/MailLight/main/main_kiosk.py"
 
+# --- יצירת אייקון והפעלה אוטומטית (ללא צורך בהקלדה ידנית!) ---
+def setup_autostart_and_desktop():
+    try:
+        shortcut_content = """[Desktop Entry]
+Name=MailLight
+Exec=/home/baruch/Desktop/MailLight/launch_kiosk.sh
+Type=Application
+Terminal=false
+"""
+        desktop_path = "/home/baruch/Desktop/MailLight_App.desktop"
+        autostart_dir = "/home/baruch/.config/autostart"
+        autostart_path = os.path.join(autostart_dir, "MailLight_App.desktop")
+        
+        # יצירת אייקון בשולחן העבודה
+        if not os.path.exists(desktop_path):
+            with open(desktop_path, "w") as f:
+                f.write(shortcut_content)
+            os.chmod(desktop_path, 0o755)
+            
+        # יצירת הפעלה אוטומטית בחשמל
+        if not os.path.exists(autostart_dir):
+            os.makedirs(autostart_dir, exist_ok=True)
+        if not os.path.exists(autostart_path):
+            with open(autostart_path, "w") as f:
+                f.write(shortcut_content)
+            os.chmod(autostart_path, 0o755)
+    except Exception as e:
+        print("Setup error:", e)
+
+# מפעיל את יצירת האייקונים מיד כשהתוכנה עולה
+setup_autostart_and_desktop()
+
 # --- טעינת נתונים ---
 try:
     with open('tenants.json', 'r', encoding='utf-8') as file:
@@ -105,10 +137,8 @@ class MailLightKiosk:
         self.go_to_sleep()
 
     def secret_exit(self, event):
-        """יציאת סתרים משודרגת שגם הורגת את לולאת המגן"""
         if event.x_root < 70 and event.y_root < 70:
             if self.cap is not None: self.cap.release()
-            # הפקודה הבאה מחפשת את הלולאה שרצה ברקע ומכבה אותה!
             os.system("pkill -f launch_kiosk.sh")
             self.root.destroy()
 
@@ -141,7 +171,6 @@ class MailLightKiosk:
 
     def check_for_updates(self):
         if "YOUR_USERNAME" in UPDATE_URL: return
-            
         try:
             with urllib.request.urlopen(UPDATE_URL, timeout=5) as response:
                 new_code = response.read().decode('utf-8')
@@ -166,8 +195,17 @@ class MailLightKiosk:
             
         self.is_standby = False
         self.last_activity_time = time.time()
-        self.cap = cv2.VideoCapture(0)
         
+        # --- מנגנון הגנה למצלמה מנותקת ---
+        self.cap = cv2.VideoCapture(0)
+        if not self.cap.isOpened():
+            self.header_label.config(image="", compound=tk.NONE, fg="red")
+            self.header_var.set(get_display("שגיאה: מצלמה לא מחוברת!"))
+            self.qr_label.config(image="")
+            self.cap = None
+            self.root.after(5000, self.go_to_sleep) # יחזור לישון אחרי 5 שניות
+            return
+            
         self.header_label.config(image="", compound=tk.NONE, fg="black")
         self.header_var.set(get_display("העבר מעטפה מול המצלמה..."))
         self.qr_label.config(image="")
@@ -222,7 +260,6 @@ class MailLightKiosk:
             self.update_arrow(self.blinking_boxes[0])
             self.blink_state = True
             
-            # --- יצירת ה-QR קוד ---
             try:
                 target_box = self.blinking_boxes[0]
                 url = f"https://maillight-app.com/delivery?box={target_box}"
@@ -234,11 +271,9 @@ class MailLightKiosk:
                 self.qr_label.config(image=self.qr_photo)
             except Exception as e:
                 print("QR Error:", e)
-            # ----------------------
             
             self.blink()
             
-        # זמן מנוחה קצר לסיום העיבוד לפני הסריקה הבאה, בלי למחוק את המסך!
         self.root.after(1500, self.end_cooldown)
 
     def end_cooldown(self):
