@@ -11,42 +11,9 @@ from google.cloud import vision
 from PIL import Image, ImageTk
 import qrcode
 
-# הגדרת המפתח של גוגל
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/baruch/Desktop/MailLight/key.json"
-
-# --- תיקון השם ל-baruch3000 ---
 UPDATE_URL = "https://raw.githubusercontent.com/baruch3000/MailLight/main/main_kiosk.py"
 
-# --- יצירת אייקון והפעלה אוטומטית ---
-def setup_autostart_and_desktop():
-    try:
-        shortcut_content = """[Desktop Entry]
-Name=MailLight
-Exec=/home/baruch/Desktop/MailLight/launch_kiosk.sh
-Type=Application
-Terminal=false
-"""
-        desktop_path = "/home/baruch/Desktop/MailLight_App.desktop"
-        autostart_dir = "/home/baruch/.config/autostart"
-        autostart_path = os.path.join(autostart_dir, "MailLight_App.desktop")
-        
-        if not os.path.exists(desktop_path):
-            with open(desktop_path, "w") as f:
-                f.write(shortcut_content)
-            os.chmod(desktop_path, 0o755)
-            
-        if not os.path.exists(autostart_dir):
-            os.makedirs(autostart_dir, exist_ok=True)
-        if not os.path.exists(autostart_path):
-            with open(autostart_path, "w") as f:
-                f.write(shortcut_content)
-            os.chmod(autostart_path, 0o755)
-    except Exception as e:
-        print("Setup error:", e)
-
-setup_autostart_and_desktop()
-
-# --- טעינת נתונים ---
 try:
     with open('tenants.json', 'r', encoding='utf-8') as file:
         tenants = json.load(file)
@@ -81,7 +48,11 @@ class MailLightKiosk:
     def __init__(self, root):
         self.root = root
         self.root.title(get_display("MailLight - מסך דוור חכם"))
-        self.root.geometry("800x480")
+        
+        # התאמה אוטומטית לכל גודל מסך בלי לחתוך כלום
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg="white")
         self.root.bind('<Double-Button-1>', self.secret_exit)
@@ -95,16 +66,25 @@ class MailLightKiosk:
         self.is_standby = True
         self.last_activity_time = 0
         self.cap = None
+        
+        # מסגרת מרכזית שתחזיק הכל באמצע המסך
+        self.main_container = tk.Frame(root, bg="white")
+        self.main_container.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        
         self.header_var = tk.StringVar()
-        self.header_label = tk.Label(root, textvariable=self.header_var, font=("Helvetica", 26, "bold"), bg="white", cursor="hand2")
+        self.header_label = tk.Label(self.main_container, textvariable=self.header_var, font=("Helvetica", 26, "bold"), bg="white", cursor="hand2")
         self.header_label.pack(pady=5)
         self.header_label.bind('<Button-1>', self.wake_up_system)
+        
         self.arrow_var = tk.StringVar(value="")
-        tk.Label(root, textvariable=self.arrow_var, font=("Helvetica", 22, "bold"), fg="red", bg="white").pack()
-        self.qr_label = tk.Label(root, bg="white")
+        tk.Label(self.main_container, textvariable=self.arrow_var, font=("Helvetica", 22, "bold"), fg="red", bg="white").pack()
+        
+        self.qr_label = tk.Label(self.main_container, bg="white")
         self.qr_label.pack(pady=5)
-        self.grid_frame = tk.Frame(root, bg="white")
+        
+        self.grid_frame = tk.Frame(self.main_container, bg="white")
         self.grid_frame.pack()
+        
         self.boxes = {}
         for i in range(1, 31):
             canvas = tk.Canvas(self.grid_frame, width=90, height=45, bg="#e0e0e0", highlightthickness=2, highlightbackground="#757575")
@@ -115,12 +95,14 @@ class MailLightKiosk:
             col = 4 - ((i-1) % 5)
             canvas.grid(row=row, column=col, padx=2, pady=1)
             self.boxes[i] = canvas
+            
         self.blinking_boxes = []
         self.blink_state = False
         self.blink_timer = None 
         self.last_frame = None
         self.is_processing = False
         self.frame_counter = 0
+        
         self.go_to_sleep()
 
     def secret_exit(self, event):
