@@ -47,7 +47,6 @@ class MailLightKiosk:
         self.root = root
         self.root.title(get_display("MailLight - מסך דוור חכם"))
         
-        # חסימת התרחבות: גודל מסך קבוע בדיוק לפי מידות המסך שלך
         self.root.geometry("800x480+0+0")
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg="white")
@@ -55,7 +54,6 @@ class MailLightKiosk:
         
         try:
             original_image = Image.open("standby.png")
-            # תמונה קטנה יותר כדי שלא תתפוס גובה
             resized_image = original_image.resize((80, 80), Image.Resampling.LANCZOS)
             self.sleep_img = ImageTk.PhotoImage(resized_image)
         except Exception as e: self.sleep_img = None 
@@ -64,29 +62,27 @@ class MailLightKiosk:
         self.last_activity_time = 0
         self.cap = None
         
-        # --- עיצוב מקובע (Pinned Layout) - שום דבר לא בורח מהמסך ---
-        
-        # 1. הכותרת (נעוצה למעלה באמצע)
+        # --- הכותרת והתמונה ---
         self.header_var = tk.StringVar()
-        self.header_label = tk.Label(root, textvariable=self.header_var, font=("Helvetica", 22, "bold"), bg="white", cursor="hand2")
-        self.header_label.place(relx=0.5, y=35, anchor=tk.CENTER)
+        self.header_label = tk.Label(root, textvariable=self.header_var, font=("Helvetica", 24, "bold"), bg="white", cursor="hand2")
+        self.header_label.place(relx=0.5, y=60, anchor=tk.CENTER)
         self.header_label.bind('<Button-1>', self.wake_up_system)
         
         self.arrow_var = tk.StringVar(value="")
         self.arrow_label = tk.Label(root, textvariable=self.arrow_var, font=("Helvetica", 20, "bold"), fg="red", bg="white")
-        self.arrow_label.place(relx=0.5, y=80, anchor=tk.CENTER)
+        self.arrow_label.place(relx=0.5, y=110, anchor=tk.CENTER)
         
-        # 2. הברקוד והוראות לשליח (נעוצים בצד ימין למעלה!)
+        # --- הברקוד והטקסט (נעוצים בצד ימין באמצע) ---
         self.qr_inst_var = tk.StringVar()
-        self.qr_inst_label = tk.Label(root, textvariable=self.qr_inst_var, font=("Helvetica", 14, "bold"), fg="#1976D2", bg="white")
-        self.qr_inst_label.place(relx=0.96, y=15, anchor=tk.NE)
+        self.qr_inst_label = tk.Label(root, textvariable=self.qr_inst_var, font=("Helvetica", 16, "bold"), fg="#1976D2", bg="white", justify=tk.CENTER)
+        self.qr_inst_label.place(relx=0.85, rely=0.4, anchor=tk.CENTER)
         
         self.qr_label = tk.Label(root, bg="white")
-        self.qr_label.place(relx=0.96, y=45, anchor=tk.NE)
+        self.qr_label.place(relx=0.85, rely=0.65, anchor=tk.CENTER)
         
-        # 3. טבלת התיבות (נעוצה למטה במרכז)
+        # --- טבלת התיבות (נעוצה למטה במרכז) ---
         self.grid_frame = tk.Frame(root, bg="white")
-        self.grid_frame.place(relx=0.5, y=130, anchor=tk.N) 
+        self.grid_frame.place(relx=0.5, y=140, anchor=tk.N) 
         
         self.boxes = {}
         for i in range(1, 31):
@@ -118,10 +114,10 @@ class MailLightKiosk:
         self.is_standby = True
         if self.cap is not None: self.cap.release(); self.cap = None
         if self.sleep_img:
-            self.header_label.config(image=self.sleep_img, compound=tk.TOP, fg="#4CAF50")
+            self.header_label.config(image=self.sleep_img, compound=tk.RIGHT, padx=15, fg="#4CAF50")
             self.header_var.set(get_display("לסריקת מכתב - גע במסך"))
         else:
-            self.header_label.config(image="", compound=tk.NONE, fg="#4CAF50")
+            self.header_label.config(image="", compound=tk.NONE, padx=0, fg="#4CAF50")
             self.header_var.set(get_display("מערכת בשינה - גע במסך להפעלה"))
         self.arrow_var.set("")
         self.qr_label.config(image="")
@@ -138,7 +134,8 @@ class MailLightKiosk:
             self.header_label.config(image="", compound=tk.NONE, fg="red")
             self.header_var.set(get_display("שגיאה: מצלמה לא מחוברת!"))
             self.cap = None; self.root.after(5000, self.go_to_sleep); return
-        self.header_label.config(image="", compound=tk.NONE, fg="black")
+        
+        self.header_label.config(image="", compound=tk.NONE, padx=0, fg="black")
         self.header_var.set(get_display("העבר מעטפה מול המצלמה..."))
         self.qr_label.config(image="")
         self.qr_inst_var.set("")
@@ -179,13 +176,16 @@ class MailLightKiosk:
                 target_box = self.blinking_boxes[0]
                 url = f"https://maillight-app.com/delivery?box={target_box}"
                 
-                # ברקוד מותאם בגודלו כדי שלא יפלוש לשטחים אחרים
-                qr = qrcode.QRCode(box_size=3, border=1)
+                # הגדלתי טיפה את הברקוד חזרה כדי שיהיה נוח לסריקה עכשיו כשיש מקום
+                qr = qrcode.QRCode(box_size=4, border=1) 
                 qr.add_data(url); qr.make(fit=True)
                 img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
                 self.qr_photo = ImageTk.PhotoImage(img); self.qr_label.config(image=self.qr_photo)
                 
-                self.qr_inst_var.set(get_display("לשליח: סרוק ברקוד"))
+                # פיצול הטקסט לשתי שורות נפרדות למניעת בעיות עברית
+                line1 = get_display("לשליח:")
+                line2 = get_display("סרוק ברקוד")
+                self.qr_inst_var.set(f"{line1}\n{line2}")
             except Exception as e: print("QR Error:", e)
             self.blink()
         self.root.after(1500, self.end_cooldown)
