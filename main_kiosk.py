@@ -50,30 +50,37 @@ class MailLightKiosk:
         self.root.configure(bg="white")
         self.root.bind('<Double-Button-1>', self.secret_exit)
         
+        try:
+            original_image = Image.open("standby.png")
+            resized_image = original_image.resize((80, 80), Image.Resampling.LANCZOS)
+            self.sleep_img = ImageTk.PhotoImage(resized_image)
+        except Exception as e: self.sleep_img = None 
+            
         self.is_standby = True
         self.cap = None
         
+        # --- עיצוב מקובע ---
         self.header_var = tk.StringVar()
         self.header_label = tk.Label(root, textvariable=self.header_var, font=("Helvetica", 24, "bold"), bg="white")
-        self.header_label.place(relx=0.5, y=60, anchor=tk.CENTER)
+        self.header_label.place(relx=0.5, y=50, anchor=tk.CENTER)
         
         self.qr_inst_var = tk.StringVar()
-        self.qr_inst_label = tk.Label(root, textvariable=self.qr_inst_var, font=("Helvetica", 16, "bold"), fg="#1976D2", bg="white")
-        self.qr_inst_label.place(relx=0.85, rely=0.4, anchor=tk.CENTER)
+        self.qr_inst_label = tk.Label(root, textvariable=self.qr_inst_var, font=("Helvetica", 14, "bold"), fg="#1976D2", bg="white", justify=tk.CENTER)
+        self.qr_inst_label.place(relx=0.85, rely=0.35, anchor=tk.CENTER)
         
         self.qr_label = tk.Label(root, bg="white")
-        self.qr_label.place(relx=0.85, rely=0.65, anchor=tk.CENTER)
+        self.qr_label.place(relx=0.85, rely=0.6, anchor=tk.CENTER)
         
         self.grid_frame = tk.Frame(root, bg="white")
-        self.grid_frame.place(relx=0.5, y=140, anchor=tk.N) 
+        self.grid_frame.place(relx=0.4, y=140, anchor=tk.N) 
         
         self.boxes = {}
         for i in range(1, 31):
-            canvas = tk.Canvas(self.grid_frame, width=80, height=45, bg="#e0e0e0", highlightthickness=1, highlightbackground="#757575")
-            canvas.create_text(40, 25, text=str(i), font=("Helvetica", 12, "bold"))
+            canvas = tk.Canvas(self.grid_frame, width=60, height=35, bg="#e0e0e0", highlightthickness=1, highlightbackground="#757575")
+            canvas.create_text(30, 18, text=str(i), font=("Helvetica", 10, "bold"))
             row = (i-1) // 5
             col = 4 - ((i-1) % 5)
-            canvas.grid(row=row, column=col, padx=3, pady=2)
+            canvas.grid(row=row, column=col, padx=2, pady=2)
             self.boxes[i] = canvas
             
         self.go_to_sleep()
@@ -85,16 +92,14 @@ class MailLightKiosk:
     def go_to_sleep(self):
         self.is_standby = True
         if self.cap: self.cap.release(); self.cap = None
-        self.header_var.set(get_display("גע במסך להפעלה"))
+        self.header_var.set(get_display("סרוק מעטפה..."))
         self.qr_label.config(image="")
         self.qr_inst_var.set("")
         self.root.update()
-        self.root.after(1000, lambda: self.wake_up_system())
 
     def wake_up_system(self):
         self.is_standby = False
         self.cap = cv2.VideoCapture(0)
-        self.header_var.set(get_display("סרוק מעטפה..."))
         self.camera_loop()
 
     def camera_loop(self):
@@ -105,7 +110,7 @@ class MailLightKiosk:
             found, _ = check_tenants(text)
             if found:
                 box = found[0][0]
-                self.header_var.set(get_display(f"מכתב לתיבה {box}"))
+                self.header_var.set(get_display(f"מכתב שייך לתיבה {box}"))
                 url = f"https://maillight-app.com/delivery?box={box}"
                 qr = qrcode.make(url)
                 img = ImageTk.PhotoImage(qr.resize((100, 100)))
