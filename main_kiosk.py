@@ -1,7 +1,6 @@
 import os
 import time
 import sys
-import urllib.request
 from bidi.algorithm import get_display
 import tkinter as tk
 import cv2
@@ -12,7 +11,6 @@ from PIL import Image, ImageTk
 import qrcode
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/baruch/Desktop/MailLight/key.json"
-UPDATE_URL = "https://raw.githubusercontent.com/baruch3000/MailLight/main/main_kiosk.py"
 
 try:
     with open('tenants.json', 'r', encoding='utf-8') as file:
@@ -49,8 +47,9 @@ class MailLightKiosk:
         self.root = root
         self.root.title(get_display("MailLight - מסך דוור חכם"))
         
-        # הגדרות מסך מלא - מתאים את עצמו לבד
-        self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg="white")
         self.root.bind('<Double-Button-1>', self.secret_exit)
@@ -65,7 +64,6 @@ class MailLightKiosk:
         self.last_activity_time = 0
         self.cap = None
         
-        # מסגרת מרכזית שמונעת מהתיבות להחתך
         self.main_container = tk.Frame(root, bg="white")
         self.main_container.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         
@@ -122,20 +120,6 @@ class MailLightKiosk:
         if self.blink_timer: self.root.after_cancel(self.blink_timer); self.blink_timer = None
         for b in range(1, 31): self.boxes[b].config(bg="#e0e0e0")
         self.root.update()
-        self.root.after(100, self.check_for_updates)
-
-    def check_for_updates(self):
-        try:
-            with urllib.request.urlopen(UPDATE_URL, timeout=5) as response:
-                new_code = response.read().decode('utf-8')
-            if "import os" in new_code and "MailLightKiosk" in new_code:
-                with open(__file__, "r", encoding="utf-8") as f: current_code = f.read()
-                if new_code.strip() != current_code.strip():
-                    with open(__file__ + ".bak", "w", encoding="utf-8") as f: f.write(current_code)
-                    with open(__file__, "w", encoding="utf-8") as f: f.write(new_code)
-                    if self.cap is not None: self.cap.release()
-                    self.root.destroy() 
-        except Exception as e: print("Update failed:", e)
 
     def wake_up_system(self, event=None):
         if not self.is_standby: return 
