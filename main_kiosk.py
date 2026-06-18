@@ -47,16 +47,16 @@ class MailLightKiosk:
         self.root = root
         self.root.title(get_display("MailLight - מסך דוור חכם"))
         
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
+        # חסימת התרחבות: גודל מסך קבוע בדיוק לפי מידות המסך שלך
+        self.root.geometry("800x480+0+0")
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg="white")
         self.root.bind('<Double-Button-1>', self.secret_exit)
         
         try:
             original_image = Image.open("standby.png")
-            resized_image = original_image.resize((120, 120), Image.Resampling.LANCZOS)
+            # תמונה קטנה יותר כדי שלא תתפוס גובה
+            resized_image = original_image.resize((80, 80), Image.Resampling.LANCZOS)
             self.sleep_img = ImageTk.PhotoImage(resized_image)
         except Exception as e: self.sleep_img = None 
             
@@ -64,43 +64,39 @@ class MailLightKiosk:
         self.last_activity_time = 0
         self.cap = None
         
-        # --- עיצוב חדש: חלוקה לימין ושמאל ---
+        # --- עיצוב מקובע (Pinned Layout) - שום דבר לא בורח מהמסך ---
         
-        # צד ימין - טקסטים, הודעות וברקוד 
-        self.info_frame = tk.Frame(root, bg="white")
-        self.info_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20)
-        
-        # צד שמאל - טבלת התיבות
-        self.grid_frame = tk.Frame(root, bg="white")
-        self.grid_frame.pack(side=tk.LEFT, padx=30, pady=20)
-        
-        # --- רכיבים בצד ימין ---
+        # 1. הכותרת (נעוצה למעלה באמצע)
         self.header_var = tk.StringVar()
-        self.header_label = tk.Label(self.info_frame, textvariable=self.header_var, font=("Helvetica", 26, "bold"), bg="white", cursor="hand2")
-        self.header_label.pack(pady=20)
+        self.header_label = tk.Label(root, textvariable=self.header_var, font=("Helvetica", 22, "bold"), bg="white", cursor="hand2")
+        self.header_label.place(relx=0.5, y=35, anchor=tk.CENTER)
         self.header_label.bind('<Button-1>', self.wake_up_system)
         
         self.arrow_var = tk.StringVar(value="")
-        tk.Label(self.info_frame, textvariable=self.arrow_var, font=("Helvetica", 22, "bold"), fg="red", bg="white").pack()
+        self.arrow_label = tk.Label(root, textvariable=self.arrow_var, font=("Helvetica", 20, "bold"), fg="red", bg="white")
+        self.arrow_label.place(relx=0.5, y=80, anchor=tk.CENTER)
         
-        # טקסט הדרכה לשליח (יוסתר כשאין ברקוד)
+        # 2. הברקוד והוראות לשליח (נעוצים בצד ימין למעלה!)
         self.qr_inst_var = tk.StringVar()
-        self.qr_inst_label = tk.Label(self.info_frame, textvariable=self.qr_inst_var, font=("Helvetica", 20, "bold"), fg="#1976D2", bg="white")
-        self.qr_inst_label.pack(pady=10)
+        self.qr_inst_label = tk.Label(root, textvariable=self.qr_inst_var, font=("Helvetica", 14, "bold"), fg="#1976D2", bg="white")
+        self.qr_inst_label.place(relx=0.96, y=15, anchor=tk.NE)
         
-        self.qr_label = tk.Label(self.info_frame, bg="white")
-        self.qr_label.pack(pady=5)
+        self.qr_label = tk.Label(root, bg="white")
+        self.qr_label.place(relx=0.96, y=45, anchor=tk.NE)
         
-        # --- רכיבים בצד שמאל (התיבות) ---
+        # 3. טבלת התיבות (נעוצה למטה במרכז)
+        self.grid_frame = tk.Frame(root, bg="white")
+        self.grid_frame.place(relx=0.5, y=130, anchor=tk.N) 
+        
         self.boxes = {}
         for i in range(1, 31):
-            canvas = tk.Canvas(self.grid_frame, width=90, height=45, bg="#e0e0e0", highlightthickness=2, highlightbackground="#757575")
-            canvas.create_rectangle(15, 8, 75, 12, fill="#333333", outline="")
-            canvas.create_text(45, 25, text=str(i), font=("Helvetica", 12, "bold"), tags="txt")
-            canvas.create_oval(40, 34, 50, 44, fill="#757575", outline="#333333")
+            canvas = tk.Canvas(self.grid_frame, width=80, height=45, bg="#e0e0e0", highlightthickness=1, highlightbackground="#757575")
+            canvas.create_rectangle(12, 8, 68, 12, fill="#333333", outline="")
+            canvas.create_text(40, 25, text=str(i), font=("Helvetica", 12, "bold"), tags="txt")
+            canvas.create_oval(35, 34, 45, 44, fill="#757575", outline="#333333")
             row = (i-1) // 5
             col = 4 - ((i-1) % 5)
-            canvas.grid(row=row, column=col, padx=2, pady=1)
+            canvas.grid(row=row, column=col, padx=3, pady=2)
             self.boxes[i] = canvas
             
         self.blinking_boxes = []
@@ -129,7 +125,7 @@ class MailLightKiosk:
             self.header_var.set(get_display("מערכת בשינה - גע במסך להפעלה"))
         self.arrow_var.set("")
         self.qr_label.config(image="")
-        self.qr_inst_var.set("")  # מחיקת הטקסט לשליח בשינה
+        self.qr_inst_var.set("")
         if self.blink_timer: self.root.after_cancel(self.blink_timer); self.blink_timer = None
         for b in range(1, 31): self.boxes[b].config(bg="#e0e0e0")
         self.root.update()
@@ -182,13 +178,14 @@ class MailLightKiosk:
             try:
                 target_box = self.blinking_boxes[0]
                 url = f"https://maillight-app.com/delivery?box={target_box}"
-                qr = qrcode.QRCode(box_size=4, border=1)
+                
+                # ברקוד מותאם בגודלו כדי שלא יפלוש לשטחים אחרים
+                qr = qrcode.QRCode(box_size=3, border=1)
                 qr.add_data(url); qr.make(fit=True)
                 img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
                 self.qr_photo = ImageTk.PhotoImage(img); self.qr_label.config(image=self.qr_photo)
                 
-                # הוספת הטקסט לשליח מעל הברקוד
-                self.qr_inst_var.set(get_display("לשליח חבילות: סרוק את הברקוד"))
+                self.qr_inst_var.set(get_display("לשליח: סרוק ברקוד"))
             except Exception as e: print("QR Error:", e)
             self.blink()
         self.root.after(1500, self.end_cooldown)
