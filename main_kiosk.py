@@ -64,23 +64,34 @@ class MailLightKiosk:
         self.last_activity_time = 0
         self.cap = None
         
-        self.main_container = tk.Frame(root, bg="white")
-        self.main_container.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        # --- עיצוב חדש: חלוקה לימין ושמאל ---
         
+        # צד ימין - טקסטים, הודעות וברקוד 
+        self.info_frame = tk.Frame(root, bg="white")
+        self.info_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # צד שמאל - טבלת התיבות
+        self.grid_frame = tk.Frame(root, bg="white")
+        self.grid_frame.pack(side=tk.LEFT, padx=30, pady=20)
+        
+        # --- רכיבים בצד ימין ---
         self.header_var = tk.StringVar()
-        self.header_label = tk.Label(self.main_container, textvariable=self.header_var, font=("Helvetica", 26, "bold"), bg="white", cursor="hand2")
-        self.header_label.pack(pady=5)
+        self.header_label = tk.Label(self.info_frame, textvariable=self.header_var, font=("Helvetica", 26, "bold"), bg="white", cursor="hand2")
+        self.header_label.pack(pady=20)
         self.header_label.bind('<Button-1>', self.wake_up_system)
         
         self.arrow_var = tk.StringVar(value="")
-        tk.Label(self.main_container, textvariable=self.arrow_var, font=("Helvetica", 22, "bold"), fg="red", bg="white").pack()
+        tk.Label(self.info_frame, textvariable=self.arrow_var, font=("Helvetica", 22, "bold"), fg="red", bg="white").pack()
         
-        self.qr_label = tk.Label(self.main_container, bg="white")
+        # טקסט הדרכה לשליח (יוסתר כשאין ברקוד)
+        self.qr_inst_var = tk.StringVar()
+        self.qr_inst_label = tk.Label(self.info_frame, textvariable=self.qr_inst_var, font=("Helvetica", 20, "bold"), fg="#1976D2", bg="white")
+        self.qr_inst_label.pack(pady=10)
+        
+        self.qr_label = tk.Label(self.info_frame, bg="white")
         self.qr_label.pack(pady=5)
         
-        self.grid_frame = tk.Frame(self.main_container, bg="white")
-        self.grid_frame.pack()
-        
+        # --- רכיבים בצד שמאל (התיבות) ---
         self.boxes = {}
         for i in range(1, 31):
             canvas = tk.Canvas(self.grid_frame, width=90, height=45, bg="#e0e0e0", highlightthickness=2, highlightbackground="#757575")
@@ -116,7 +127,9 @@ class MailLightKiosk:
         else:
             self.header_label.config(image="", compound=tk.NONE, fg="#4CAF50")
             self.header_var.set(get_display("מערכת בשינה - גע במסך להפעלה"))
-        self.arrow_var.set(""); self.qr_label.config(image="")
+        self.arrow_var.set("")
+        self.qr_label.config(image="")
+        self.qr_inst_var.set("")  # מחיקת הטקסט לשליח בשינה
         if self.blink_timer: self.root.after_cancel(self.blink_timer); self.blink_timer = None
         for b in range(1, 31): self.boxes[b].config(bg="#e0e0e0")
         self.root.update()
@@ -132,6 +145,7 @@ class MailLightKiosk:
         self.header_label.config(image="", compound=tk.NONE, fg="black")
         self.header_var.set(get_display("העבר מעטפה מול המצלמה..."))
         self.qr_label.config(image="")
+        self.qr_inst_var.set("")
         self.last_frame = None; self.is_processing = False; self.frame_counter = 0
         self.root.after(100, self.camera_loop)
 
@@ -172,6 +186,9 @@ class MailLightKiosk:
                 qr.add_data(url); qr.make(fit=True)
                 img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
                 self.qr_photo = ImageTk.PhotoImage(img); self.qr_label.config(image=self.qr_photo)
+                
+                # הוספת הטקסט לשליח מעל הברקוד
+                self.qr_inst_var.set(get_display("לשליח חבילות: סרוק את הברקוד"))
             except Exception as e: print("QR Error:", e)
             self.blink()
         self.root.after(1500, self.end_cooldown)
