@@ -49,10 +49,8 @@ class MailLightKiosk:
         self.root = root
         self.root.title(get_display("MailLight - מסך דוור חכם"))
         
-        # התאמה אוטומטית לכל גודל מסך בלי לחתוך כלום
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
+        # הגדרות מסך מלא - מתאים את עצמו לבד
+        self.root.geometry(f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
         self.root.attributes('-fullscreen', True)
         self.root.configure(bg="white")
         self.root.bind('<Double-Button-1>', self.secret_exit)
@@ -67,7 +65,7 @@ class MailLightKiosk:
         self.last_activity_time = 0
         self.cap = None
         
-        # מסגרת מרכזית שתחזיק הכל באמצע המסך
+        # מסגרת מרכזית שמונעת מהתיבות להחתך
         self.main_container = tk.Frame(root, bg="white")
         self.main_container.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         
